@@ -1,0 +1,17 @@
+{% extends layout ?: "@PayumCore/layout.html.twig" %}
+
+{% block payum_body %}
+    {{ parent() }}
+
+    <form action="{{ returnUrl }}" id="{{ token }}">VISA MASTER AMEX</form>
+{% endblock %}
+
+{% block payum_javascripts %}
+    {{ parent() }}
+
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script src="https://test.ctpe.net/frontend/widget/v2/widget.js?compressed=false&language=en&style=card"></script>
+{% endblock %}

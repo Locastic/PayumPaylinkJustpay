@@ -4,21 +4,21 @@ namespace Locastic\PayLinkPayum\Action;
 use Payum\Core\Action\ActionInterface;
 use Payum\Core\Bridge\Spl\ArrayObject;
 use Payum\Core\Exception\RequestNotSupportedException;
-use Payum\Core\Request\StatusRequestInterface;
+use Payum\Core\Request\GetStatusInterface;
 
 class StatusAction implements ActionInterface
 {
     /**
      * {@inheritDoc}
+     *
+     * @param GetStatusInterface $request
      */
     public function execute($request)
     {
-        /** @var $request StatusRequestInterface */
-        if (false == $this->supports($request)) {
-            throw RequestNotSupportedException::createActionNotSupported($this, $request);
-        }
+        RequestNotSupportedException::assertSupports($this, $request);
 
         $rawModel = (array) ArrayObject::ensureArrayObject($request->getModel());
+
         if (false == isset($rawModel['transaction']['processing']['result'])) {
             if (isset($rawModel['transaction']['token'])) {
                 $request->markPending();
@@ -30,7 +30,7 @@ class StatusAction implements ActionInterface
         }
 
         if ($rawModel['transaction']['processing']['result'] == 'ACK') {
-            $request->markSuccess();
+            $request->markCaptured();
 
             return;
         }
@@ -50,7 +50,7 @@ class StatusAction implements ActionInterface
     public function supports($request)
     {
         return
-            $request instanceof StatusRequestInterface &&
+            $request instanceof GetStatusInterface &&
             $request->getModel() instanceof \ArrayAccess
         ;
     }

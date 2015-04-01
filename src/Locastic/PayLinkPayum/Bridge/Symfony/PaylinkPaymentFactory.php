@@ -2,56 +2,20 @@
 namespace Locastic\PayLinkPayum\Bridge\Symfony;
 
 use Payum\Bundle\PayumBundle\DependencyInjection\Factory\Payment\AbstractPaymentFactory;
-use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Payum\Core\Bridge\Twig\TwigFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
-use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
+use Symfony\Component\DependencyInjection\Parameter;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 
-class PaylinkPaymentFactory extends AbstractPaymentFactory
+class PaylinkPaymentFactory extends AbstractPaymentFactory implements PrependExtensionInterface
 {
     /**
-     * @param Definition $paymentDefinition
-     * @param ContainerBuilder $container
-     * @param $contextName
-     * @param array $config
+     * {@inheritDoc}
      */
-    protected function addActions(Definition $paymentDefinition, ContainerBuilder $container, $contextName, array $config)
+    public function getName()
     {
-        $captureAction = new Definition;
-        $captureAction->setClass('Locastic\PayLinkPayum\Action\CaptureAction');
-        $captureAction->setPublic(false);
-        $captureAction->addTag('payum.action', array(
-            'factory' => 'paylink'
-        ));
-        $container->setDefinition('locastic.paylink_payum.action.capture', $captureAction);
-
-        $statusAction = new Definition;
-        $statusAction->setClass('Locastic\PayLinkPayum\Action\StatusAction');
-        $statusAction->setPublic(false);
-        $statusAction->addTag('payum.action', array(
-            'factory' => 'paylink'
-        ));
-        $container->setDefinition('locastic.paylink_payum.action.status', $statusAction);
-    }
-
-    /**
-     * @param Definition $paymentDefinition
-     * @param ContainerBuilder $container
-     * @param $contextName
-     * @param array $config
-     */
-    protected function addApis(Definition $paymentDefinition, ContainerBuilder $container, $contextName, array $config)
-    {
-        $paylink = new Definition;
-        $paylink->setClass('PayLink\PayLink');
-        $paylink->addArgument($config['channel_id']);
-        $paylink->addArgument($config['sender_id']);
-        $paylink->addArgument($config['user_login']);
-        $paylink->addArgument($config['user_password']);
-        $paylink->addArgument($config['sandbox']);
-        $container->setDefinition('locastic.paylink_payum.api', $paylink);
-
-        $paymentDefinition->addMethodCall('addApi', array(new Reference('locastic.paylink_payum.api')));
+        return 'paylink';
     }
 
     /**
@@ -63,20 +27,62 @@ class PaylinkPaymentFactory extends AbstractPaymentFactory
 
         $builder
             ->children()
-                ->scalarNode('channel_id')->isRequired()->cannotBeEmpty()->end()
-                ->scalarNode('sender_id')->isRequired()->cannotBeEmpty()->end()
-                ->scalarNode('user_login')->isRequired()->cannotBeEmpty()->end()
-                ->scalarNode('user_password')->isRequired()->cannotBeEmpty()->end()
-                ->booleanNode('sandbox')->defaultValue(true)->end()
+            ->scalarNode('channel_id')->isRequired()->cannotBeEmpty()->end()
+            ->scalarNode('sender_id')->isRequired()->cannotBeEmpty()->end()
+            ->scalarNode('user_login')->isRequired()->cannotBeEmpty()->end()
+            ->scalarNode('user_password')->isRequired()->cannotBeEmpty()->end()
+            ->booleanNode('sandbox')->defaultValue(true)->end()
             ->end()
-        ->end();
+            ->end();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function getName()
+    public function prepend(ContainerBuilder $container)
     {
-        return 'paylink';
+        $container->prependExtensionConfig('twig', array(
+            'paths' => array_flip(array_filter(array(
+                'PayumCore' => TwigFactory::guessViewsPath('Payum\Core\Payment'),
+                'LocasticPaylink' => TwigFactory::guessViewsPath('Locastic\PayLinkPayum\PaymentFactory'),
+            )))
+        ));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function load(ContainerBuilder $container)
+    {
+        parent::load($container);
+
+        $container->setParameter('locastic.paylink_payum.template.widget', '@LocasticPaylink/widget.html.twig');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function createFactoryConfig()
+    {
+        $config = parent::createFactoryConfig();
+        $config['payum.template.widget'] = new Parameter('locastic.paylink_payum.template.widget');
+
+        return $config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getPayumPaymentFactoryClass()
+    {
+        return 'Locastic\PayLinkPayum\PaymentFactory';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getComposerPackage()
+    {
+        return 'locastic/paylink-payum';
     }
 }

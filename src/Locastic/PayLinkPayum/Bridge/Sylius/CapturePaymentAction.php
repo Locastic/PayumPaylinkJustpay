@@ -4,44 +4,33 @@ namespace Locastic\PayLinkPayum\Bridge\Sylius;
 use Payum\Core\Action\PaymentAwareAction;
 use Payum\Core\Bridge\Spl\ArrayObject;
 use Payum\Core\Exception\RequestNotSupportedException;
-use Payum\Core\Request\CaptureRequest;
-use Payum\Core\Request\ResponseInteractiveRequest;
-use Payum\Core\Request\SimpleStatusRequest;
+use Payum\Core\Request\Capture;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\Component\Core\Model\PaymentInterface;
-use Symfony\Component\Templating\EngineInterface;
 
 class CapturePaymentAction extends PaymentAwareAction
 {
-    /**
-     * @var EngineInterface
-     */
-    protected $templating;
-
     /**
      * @var string
      */
     protected $templateName;
 
     /**
-     * @param EngineInterface $templating
      * @param string $templateName
      */
-    public function __construct(EngineInterface $templating, $templateName)
+    public function __construct($templateName)
     {
-        $this->templating = $templating;
         $this->templateName = $templateName;
     }
 
     /**
      * {@inheritDoc}
+     *
+     * @param Capture $request
      */
     public function execute($request)
     {
-        /** @var $request CaptureRequest */
-        if (false == $this->supports($request)) {
-            throw RequestNotSupportedException::createActionNotSupported($this, $request);
-        }
+        RequestNotSupportedException::assertSupports($this, $request);
 
         /** @var $payment PaymentInterface */
         $payment = $request->getModel();
@@ -50,8 +39,6 @@ class CapturePaymentAction extends PaymentAwareAction
         $order = $payment->getOrder();
 
         $details = $payment->getDetails();
-
-
         if (empty($details)) {
             $details = array();
             $details['NAME.GIVEN'] = $order->getBillingAddress()->getFirstName() ?: 'Unknown';
@@ -73,19 +60,8 @@ class CapturePaymentAction extends PaymentAwareAction
             $this->payment->execute($request);
 
             $payment->setDetails((array) $details);
-            $request->setModel($payment);
-        } catch (ResponseInteractiveRequest $interactiveRequest) {
-            $payment->setDetails((array) $details);
-            $request->setModel($payment);
-            $rawDetails = (array) $details;
-
-            throw new ResponseInteractiveRequest($this->templating->render($this->templateName, array(
-                'return_url' => $details['RETURN_URL'],
-                'token' => $rawDetails['transaction']['token'],
-            )));
         } catch (\Exception $e) {
             $payment->setDetails((array) $details);
-            $request->setModel($payment);
 
             throw $e;
         }
@@ -97,7 +73,7 @@ class CapturePaymentAction extends PaymentAwareAction
     public function supports($request)
     {
         return
-            $request instanceof CaptureRequest &&
+            $request instanceof Capture &&
             $request->getModel() instanceof PaymentInterface
         ;
     }
