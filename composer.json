@@ -20,5 +20,10 @@
             "Locastic\\PaylinkPayum": "src/",
             "PayLink": "src/"
         }
+    },
+    "extra": {
+        "branch-alias": {
+          "dev-master": "0.12-dev"
+        }
     }
 }
