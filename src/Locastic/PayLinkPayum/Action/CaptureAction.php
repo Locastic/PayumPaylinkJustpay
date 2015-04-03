@@ -10,13 +10,26 @@ use Payum\Core\Bridge\Spl\ArrayObject;
 use Payum\Core\Exception\LogicException;
 use Payum\Core\Exception\RequestNotSupportedException;
 use Payum\Core\Exception\UnsupportedApiException;
-use Payum\Core\Request\CaptureRequest;
-use Payum\Core\Request\GetHttpQueryRequest;
-use Payum\Core\Request\ResponseInteractiveRequest;
-use Payum\Core\Request\SecuredCaptureRequest;
+use Payum\Core\Reply\HttpResponse;
+use Payum\Core\Request\Capture;
+use Payum\Core\Request\GetHttpRequest;
+use Payum\Core\Request\RenderTemplate;
 
 class CaptureAction extends PaymentAwareAction implements ApiAwareInterface
 {
+    /**
+     * @var string
+     */
+    private $templateName;
+
+    /**
+     * @param string $templateName
+     */
+    public function __construct($templateName)
+    {
+        $this->templateName = $templateName;
+    }
+
     /**
      * @var PayLink
      */
@@ -36,27 +49,31 @@ class CaptureAction extends PaymentAwareAction implements ApiAwareInterface
 
     /**
      * {@inheritDoc}
+     *
+     * @param Capture $request
      */
     public function execute($request)
     {
-        /** @var $request CaptureRequest */
-        if (false == $this->supports($request)) {
-            throw RequestNotSupportedException::createActionNotSupported($this, $request);
-        }
+        RequestNotSupportedException::assertSupports($this, $request);
 
         $model = ArrayObject::ensureArrayObject($request->getModel());
         $rawModel = (array) $model;
         if (isset($rawModel['transaction']['token'])) {
-            $this->payment->execute($getQuery = new GetHttpQueryRequest);
-            if (isset($getQuery['token'])) {
-                $model['token'] = $getQuery['token'];
+            $this->payment->execute($httpRequest = new GetHttpRequest());
+            if (isset($httpRequest->query['token'])) {
+                $model['token'] = $httpRequest->query['token'];
 
-                $model->replace($this->api->getStatus($getQuery['token'])->getData());
+                $model->replace($this->api->getStatus($httpRequest->query['token'])->getData());
 
                 return;
             }
 
-            throw new ResponseInteractiveRequest($this->getCreditCardHtml($model['RETURN_URL'], $rawModel['transaction']['token']));
+            $this->payment->execute($renderTemplate = new RenderTemplate($this->templateName, array(
+                'returnUrl' => $model['RETURN_URL'],
+                'token' => $rawModel['transaction']['token']
+            )));
+
+            throw new HttpResponse($renderTemplate->getResult());
         }
 
         $customer = new Customer();
@@ -75,7 +92,7 @@ class CaptureAction extends PaymentAwareAction implements ApiAwareInterface
         $model->replace($this->api->generateToken($transaction)->getData());
         $rawModel = (array) $model;
 
-        if (false == $model['RETURN_URL'] && $request instanceof SecuredCaptureRequest) {
+        if (false == $model['RETURN_URL'] && $request->getToken()) {
             $model['RETURN_URL'] = $request->getToken()->getTargetUrl();
         }
 
@@ -86,7 +103,12 @@ class CaptureAction extends PaymentAwareAction implements ApiAwareInterface
             throw new LogicException('RETURN_URL is missing. Pass RETURN_URL explicitly or pass SecuredCaptureRequest');
         }
 
-        throw new ResponseInteractiveRequest($this->getCreditCardHtml($model['RETURN_URL'], $rawModel['transaction']['token']));
+        $this->payment->execute($renderTemplate = new RenderTemplate($this->templateName, array(
+            'returnUrl' => $model['RETURN_URL'],
+            'token' => $rawModel['transaction']['token']
+        )));
+
+        throw new HttpResponse($renderTemplate->getResult());
     }
 
     /**
@@ -95,32 +117,8 @@ class CaptureAction extends PaymentAwareAction implements ApiAwareInterface
     public function supports($request)
     {
         return
-            $request instanceof CaptureRequest &&
+            $request instanceof Capture &&
             $request->getModel() instanceof \ArrayAccess
         ;
-    }
-
-    /**
-     * @param string $returnUrl
-     * @param string $token
-     *
-     * @return string
-     */
-    protected function getCreditCardHtml($returnUrl, $token)
-    {
-        return <<<HTML
-<html>
-<head>
-    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
-
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-    <script src="//netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
-    <script src="https://test.ctpe.net/frontend/widget/v2/widget.js?compressed=false&language=en&style=card"></script>
-</head>
-<body>
-    <form action="{$returnUrl}" id="{$token}">VISA MASTER AMEX</form>
-</body>
-</html>
-HTML;
     }
 }
