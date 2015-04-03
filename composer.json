@@ -17,7 +17,7 @@
     },
     "autoload": {
         "psr-0": {
-            "Locastic\\PaylinkPayum": "src/",
+            "Locastic\\PayLinkPayum": "src/",
             "PayLink": "src/"
         }
     },
