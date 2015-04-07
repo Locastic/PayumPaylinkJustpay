@@ -55,7 +55,7 @@ class PaymentFactory implements PaymentFactoryInterface
             },
             'payum.action.status' => new StatusAction(),
 
-            'payum.template.widget' => '@LocasticPaylink/widget.html.twig',
+            'payum.template.widget' => '@LocasticPayLink/widget.html.twig',
         ));
 
         if (false == $config['payum.api']) {
