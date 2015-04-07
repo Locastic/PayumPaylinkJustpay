@@ -8,7 +8,7 @@ use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Parameter;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 
-class PaylinkPaymentFactory extends AbstractPaymentFactory implements PrependExtensionInterface
+class PayLinkPaymentFactory extends AbstractPaymentFactory implements PrependExtensionInterface
 {
     /**
      * {@inheritDoc}
@@ -44,7 +44,7 @@ class PaylinkPaymentFactory extends AbstractPaymentFactory implements PrependExt
         $container->prependExtensionConfig('twig', array(
             'paths' => array_flip(array_filter(array(
                 'PayumCore' => TwigFactory::guessViewsPath('Payum\Core\Payment'),
-                'LocasticPaylink' => TwigFactory::guessViewsPath('Locastic\PayLinkPayum\PaymentFactory'),
+                'LocasticPayLink' => TwigFactory::guessViewsPath('Locastic\PayLinkPayum\PaymentFactory'),
             )))
         ));
     }
@@ -56,7 +56,7 @@ class PaylinkPaymentFactory extends AbstractPaymentFactory implements PrependExt
     {
         parent::load($container);
 
-        $container->setParameter('locastic.paylink_payum.template.widget', '@LocasticPaylink/widget.html.twig');
+        $container->setParameter('locastic.paylink_payum.template.widget', '@LocasticPayLink/widget.html.twig');
     }
 
     /**
