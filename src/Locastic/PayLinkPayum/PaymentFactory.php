@@ -72,7 +72,6 @@ class PaymentFactory implements PaymentFactoryInterface
                 'sender_id',
                 'user_login',
                 'user_password',
-                'sandbox' => true,
             );
 
             $config['payum.api'] = function (ArrayObject $config) {
